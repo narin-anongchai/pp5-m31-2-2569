@@ -865,7 +865,7 @@
 
     // (แนะนำสำหรับนำขึ้น GitHub) คุณสามารถวาง Web App URL ของ Google Apps Script ประจำห้องนี้ไว้ในเครื่องหมายคำพูดด้านล่างนี้ได้โดยตรง
     // เพื่อให้นักเรียนหรือผู้เปิดลิงก์จากทุกเครื่องดึงข้อมูลจาก Sheet นี้ได้ทันทีโดยไม่ต้องตั้งค่าเอง:
-    const DEFAULT_GAS_WEBAPP_URL = '';
+    const DEFAULT_GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzdLCFfTLtjUaM31nx2kxHV-FDS7lXg4A9gAfOYQGh-ppbsBBszaFNndedKc8lyj5w/exec';
 
     function getActiveGasUrl() {
       return (localStorage.getItem(GAS_URL_KEY) || DEFAULT_GAS_WEBAPP_URL || '').trim();
