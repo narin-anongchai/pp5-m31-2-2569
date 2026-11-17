@@ -167,11 +167,6 @@
           <span id="syncStatusText">บันทึกในเครื่องแล้ว (Local)</span>
         </div>
 
-        <button onclick="syncWithGoogleSheets('pull')" id="btnPullCloud" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium transition border border-white/15" title="ดึงข้อมูลล่าสุดจาก Google Sheets">
-          <i data-lucide="cloud-download" class="w-4 h-4 text-sky-300"></i>
-          <span>ดึงจาก Sheet</span>
-        </button>
-
         <button onclick="syncWithGoogleSheets('push')" id="btnPushCloud" class="hidden inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs sm:text-sm font-semibold shadow-sm transition">
           <i data-lucide="cloud-upload" class="w-4 h-4"></i>
           <span>บันทึกลง Google Sheets</span>
@@ -852,6 +847,22 @@
     </div>
   </div>
 
+  <!-- ======================= MODAL 7: LOADING PROGRESS POPUP ======================= -->
+  <div id="modalLoadingProgress" class="fixed inset-0 bg-slate-900/75 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-slate-200 p-6 text-center space-y-4">
+      <div class="w-14 h-14 rounded-2xl bg-brand-50 text-brand-600 mx-auto flex items-center justify-center border border-brand-100">
+        <i data-lucide="loader-2" class="w-8 h-8 animate-spin"></i>
+      </div>
+      <div class="space-y-1">
+        <h3 id="loadingProgressTitle" class="font-bold text-base text-slate-800">กำลังดึงข้อมูลคะแนนล่าสุด...</h3>
+        <p id="loadingProgressSub" class="text-xs text-slate-500">กำลังเชื่อมต่อฐานข้อมูล Google Sheets กรุณารอสักครู่</p>
+      </div>
+      <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+        <div id="loadingProgressBar" class="h-full bg-gradient-to-r from-brand-600 to-emerald-500 transition-all duration-300" style="width: 25%"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
@@ -865,7 +876,7 @@
 
     // (แนะนำสำหรับนำขึ้น GitHub) คุณสามารถวาง Web App URL ของ Google Apps Script ประจำห้องนี้ไว้ในเครื่องหมายคำพูดด้านล่างนี้ได้โดยตรง
     // เพื่อให้นักเรียนหรือผู้เปิดลิงก์จากทุกเครื่องดึงข้อมูลจาก Sheet นี้ได้ทันทีโดยไม่ต้องตั้งค่าเอง:
-    const DEFAULT_GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzdLCFfTLtjUaM31nx2kxHV-FDS7lXg4A9gAfOYQGh-ppbsBBszaFNndedKc8lyj5w/exec';
+    const DEFAULT_GAS_WEBAPP_URL = '';
 
     function getActiveGasUrl() {
       return (localStorage.getItem(GAS_URL_KEY) || DEFAULT_GAS_WEBAPP_URL || '').trim();
@@ -957,13 +968,14 @@
         seedDefaultData();
       }
 
-      const savedUrl = getActiveGasUrl();
-      if (savedUrl) {
-        document.getElementById('btnPullCloud').classList.remove('hidden');
-      }
-
       renderAll();
       lucide.createIcons();
+
+      // ดึงข้อมูลล่าสุดจาก Google Sheets ทันทีที่เปิดหน้าเว็บ พร้อมแสดง Pop-up Progress
+      const savedUrl = getActiveGasUrl();
+      if (savedUrl) {
+        syncWithGoogleSheets('pull');
+      }
     }
 
     function seedDemoActivitiesIfEmpty() {
@@ -2633,40 +2645,55 @@
       }
 
       if (direction === 'pull') {
+        const progressBar = document.getElementById('loadingProgressBar');
+        const progressTitle = document.getElementById('loadingProgressTitle');
+        const progressSub = document.getElementById('loadingProgressSub');
+        if (progressBar) progressBar.style.width = '35%';
+        if (progressTitle) progressTitle.textContent = 'กำลังดึงข้อมูลคะแนนล่าสุด...';
+        if (progressSub) progressSub.textContent = 'กำลังเชื่อมต่อฐานข้อมูล Google Sheets กรุณารอสักครู่';
+        openModal('modalLoadingProgress');
+        lucide.createIcons();
+
         updateSyncBadge('syncing', 'กำลังดึงข้อมูลจาก Google Sheets...');
         try {
+          if (progressBar) progressBar.style.width = '75%';
           const res = await fetch(`${url}?action=loadAll`);
           const json = await res.json();
           if (json.status === 'ok' && json.data) {
+            if (progressBar) progressBar.style.width = '100%';
             if (json.data.ownerSettings && json.data.ownerSettings.owner_email) {
               appData.ownerSettings = Object.assign(appData.ownerSettings || {}, json.data.ownerSettings);
             }
             if (Array.isArray(json.data.classes) && json.data.classes.length > 0) {
-              appData.classes = json.data.classes;
-              const c0 = appData.classes[0] || {};
+              const keepClass = json.data.classes[0];
+              const keepClassId = keepClass.class_id;
+              appData.classes = [keepClass];
               appData.subjectConfig = {
-                subject_code: c0.subject_code || 'อ23102',
-                subject_name: c0.subject_name || 'ภาษาอังกฤษพื้นฐาน',
-                semester: String(c0.semester || '2'),
-                academic_year: String(c0.academic_year || '2569')
+                subject_code: keepClass.subject_code || 'อ23102',
+                subject_name: keepClass.subject_name || 'ภาษาอังกฤษพื้นฐาน',
+                grade_level: keepClass.grade_level || 'ม.3',
+                room_name: keepClass.room_name || 'ห้อง 1 (ม.3/1)',
+                semester: String(keepClass.semester || '2'),
+                academic_year: String(keepClass.academic_year || '2569')
               };
-              appData.students = json.data.students || [];
-              appData.units = json.data.units || [];
-              appData.scores = json.data.scores || [];
-              appData.activities = json.data.activities || [];
-              appData.activityScores = json.data.activityScores || [];
-              appData.activeClassId = appData.classes[0].class_id;
+              appData.students = (json.data.students || []).filter(s => s.class_id === keepClassId);
+              appData.units = (json.data.units || []).filter(u => u.class_id === keepClassId);
+              appData.scores = (json.data.scores || []).filter(sc => sc.class_id === keepClassId);
+              appData.activities = (json.data.activities || []).filter(a => a.class_id === keepClassId);
+              appData.activityScores = (json.data.activityScores || []).filter(as => as.class_id === keepClassId);
+              appData.activeClassId = keepClassId;
               saveToLocal();
               renderAll();
               updateSyncBadge('synced', 'ดึงข้อมูลจาก Google Sheets แล้ว');
-              showToast('ดึงข้อมูลล่าสุดจาก Google Sheets เรียบร้อยแล้ว!', 'success');
-            } else {
-              showToast('ยังไม่มีข้อมูลบน Google Sheets ระบบจะใช้ข้อมูลปัจจุบันในเครื่อง', 'info');
             }
           }
         } catch (err) {
           updateSyncBadge('error');
           showToast('ไม่สามารถดึงข้อมูลจาก Google Sheets ได้ กรุณาตรวจสอบสิทธิ์ Web App (Anyone)', 'warning');
+        } finally {
+          setTimeout(() => {
+            closeModal('modalLoadingProgress');
+          }, 250);
         }
         return;
       }
