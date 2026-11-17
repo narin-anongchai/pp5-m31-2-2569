@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ระบบบันทึกคะแนนนักเรียน (ปพ.5 ออนไลน์) | เชื่อมต่อ Google Sheets</title>
+  <title>ระบบติดตามคะแนนการเรียน ครูนรินทร์ อนงค์ชัย ออนไลน์ (Realtime Class Scoring)</title>
 
   <!-- Google Fonts: Prompt & Sarabun -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -144,7 +144,7 @@
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <h1 class="text-lg sm:text-xl font-bold tracking-tight">ระบบบันทึกคะแนนนักเรียน (ปพ.5 ออนไลน์)</h1>
+            <h1 class="text-lg sm:text-xl font-bold tracking-tight">ระบบติดตามคะแนนการเรียน ครูนรินทร์ อนงค์ชัย ออนไลน์ (Realtime Class Scoring)</h1>
             <span class="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-400/20 text-amber-200 border border-amber-300/30">
               ตัดคะแนนเต็ม 100 อัตโนมัติ
             </span>
@@ -913,8 +913,11 @@
 
   <!-- ======================= APPLICATION JAVASCRIPT ======================= -->
   <script>
-    const STORAGE_KEY = 'pp5_student_gradebook_v1';
-    const GAS_URL_KEY = 'pp5_gas_webapp_url_v1';
+    // แยกพื้นที่เก็บข้อมูลในเครื่อง (localStorage) ตามลิงก์/โฟลเดอร์ (Pathname) อัตโนมัติ
+    // ทำให้ฝากไว้บน GitHub หลายลิงก์/หลายห้องเรียน และเปิดใช้งานพร้อมกันได้โดยข้อมูลและลิงก์ Sheet ไม่ทับกัน
+    const PAGE_SCOPE = (window.location.pathname || 'default').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const STORAGE_KEY = 'pp5_student_gradebook_v1_' + PAGE_SCOPE;
+    const GAS_URL_KEY = 'pp5_gas_webapp_url_v1_' + PAGE_SCOPE;
 
     let appData = {
       activeClassId: 'cls_m3_1',
